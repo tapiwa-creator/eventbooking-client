@@ -587,7 +587,7 @@ export default function BookingModal({ event, onClose, onBookingSuccess }) {
                         {[
                             { label: "Unit price", value: `${sym}${unitPrice}` },
                             { label: "Tickets", value: `× ${qty}` },
-                            { label: "Fee (3.5%)", value: `${sym}${fee.toFixed(2)}` },
+                            { label: "Fee", value: `${sym}${fee.toFixed(2)}` },
                         ].map(row => (
                             <div key={row.label} style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
                                 <span style={{ color: "#9ca3af", fontSize: "13px" }}>{row.label}</span>
