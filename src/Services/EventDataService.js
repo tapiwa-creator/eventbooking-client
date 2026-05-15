@@ -1,0 +1,166 @@
+/**
+ * EventDataService.js
+ * Client-facing Firestore subscriptions with static seed fallbacks.
+ */
+
+import { db } from "../firebase";
+import { collection, onSnapshot, query, where, orderBy, Timestamp } from "firebase/firestore";
+import { allEvents, eventsByCategory } from "../data/eventData";
+
+const col = () => collection(db, "events");
+
+const TAG_COLOURS = {
+    CONCERT: "#db2777", CONFERENCE: "#2563eb", FOOD: "#ea580c",
+    OUTDOORS: "#16a34a", SPORTS: "#0891b2", ARTS: "#7c3aed", NIGHTLIFE: "#be185d",
+};
+
+const TAG_BG = {
+    CONCERT: "#1a0a1e", CONFERENCE: "#0a0f1e", FOOD: "#1a0a00",
+    OUTDOORS: "#071a0a", SPORTS: "#071420", ARTS: "#0f071a", NIGHTLIFE: "#1a0714",
+};
+
+const SYM = { ZAR: "R", USD: "$", GBP: "£", ZiG: "ZiG" };
+
+function toISO(v) {
+    return v instanceof Timestamp ? v.toDate().toISOString() : (v ?? null);
+}
+
+function formatDate(dateStr, timeStr) {
+    if (!dateStr) return "Date TBD";
+    try {
+        const [y, m, d] = dateStr.split("-").map(Number);
+        const label = new Date(y, m - 1, d).toLocaleDateString("en-US", {
+            weekday: "short", month: "short", day: "numeric",
+        });
+        return timeStr ? `${label} · ${timeStr}` : label;
+    } catch {
+        return dateStr;
+    }
+}
+
+function extractPrice(pricing, fallbackUnit = "ticket") {
+    if (!pricing) return null;
+    const sym = SYM[pricing.currency] ?? "$";
+    const unit = pricing.unit ?? fallbackUnit;
+    if (pricing.mode === "flat") {
+        const num = parseFloat(String(pricing.price ?? "0").replace(/[^0-9.]/g, "")) || 0;
+        return { price: num > 0 ? `${sym}${num}` : "Free", priceNum: num, unit };
+    }
+    const items =
+        pricing.mode === "packages" ? (pricing.packages ?? []) :
+            pricing.mode === "classified" ? (pricing.tiers ?? []) : [];
+    const prices = items.map(i => parseFloat(String(i.price ?? "0").replace(/[^0-9.]/g, ""))).filter(n => n > 0);
+    const min = prices.length ? Math.min(...prices) : 0;
+    // No "From" prefix — just show the minimum price
+    return { price: min > 0 ? `${sym}${min}` : "Free", priceNum: min, unit };
+}
+
+function transform(snapshot) {
+    if (!snapshot.exists()) return null;
+    const d = snapshot.data();
+    const tag = (d.category ?? d.tag ?? "ARTS").toUpperCase();
+
+    let price, priceNum, unit;
+    const fromPricing = extractPrice(d.pricing, d.unit ?? "ticket");
+    if (fromPricing) {
+        ({ price, priceNum, unit } = fromPricing);
+    } else {
+        // Legacy flat fields — resolve currency symbol from pricing.currency if available
+        const sym = SYM[d.pricing?.currency] ?? SYM[d.currency] ?? "$";
+        const num = typeof d.priceNum === "number" ? d.priceNum
+            : parseFloat(String(d.price ?? "0").replace(/[^0-9.]/g, "")) || 0;
+        price = num > 0 ? `${sym}${num}` : "Free";
+        priceNum = num;
+        unit = d.unit ?? "ticket";
+    }
+
+    const isBlobUrl = typeof d.imageUrl === "string" && d.imageUrl.startsWith("blob:");
+    const image = (d.imageUrl && !isBlobUrl) ? d.imageUrl
+        : (d.image && !d.image.startsWith("blob:")) ? d.image
+            : null;
+
+    return {
+        id: snapshot.id,
+        source: "firestore",
+        tag,
+        tagColor: TAG_COLOURS[tag] ?? "#6c47ff",
+        bg: TAG_BG[tag] ?? "#0a0a14",
+        title: d.title ?? "Untitled Event",
+        description: d.description ?? "",
+        location: d.location ?? "Location TBD",
+        date: formatDate(d.date, d.time),
+        image,
+        price,
+        priceNum,
+        unit,
+        pricing: d.pricing ?? null,
+        status: d.status ?? "Upcoming",
+        totalCapacity: d.totalCapacity ? Number(d.totalCapacity) : null,
+        bookedCount: Number(d.bookedCount ?? 0),
+        createdAt: toISO(d.createdAt),
+        updatedAt: toISO(d.updatedAt),
+        isFeatured: d.isFeatured ?? false,
+    };
+}
+
+function logErr(fn, err) {
+    console.error(`❌ EventDataService.${fn}:`, err?.code ?? "", err?.message ?? err);
+}
+
+export function subscribeToAllEvents(setter, onErr) {
+    try {
+        const q = query(col(), orderBy("createdAt", "desc"));
+        return onSnapshot(
+            q,
+            { includeMetadataChanges: false },
+            snap => {
+                if (snap.empty) { setter(allEvents); return; }
+                setter(snap.docs.map(transform).filter(Boolean));
+            },
+            err => {
+                logErr("subscribeToAllEvents", err);
+                setter(allEvents);
+                onErr?.(err.message);
+            }
+        );
+    } catch (err) {
+        logErr("subscribeToAllEvents", err);
+        setter(allEvents);
+        onErr?.(err.message);
+        return () => { };
+    }
+}
+
+export function subscribeToCategory(tag, setter, onErr) {
+    try {
+        const q = query(col(), where("tag", "==", tag), orderBy("createdAt", "desc"));
+        return onSnapshot(
+            q,
+            { includeMetadataChanges: false },
+            snap => {
+                if (snap.empty) { setter(eventsByCategory[tag] ?? []); return; }
+                setter(snap.docs.map(transform).filter(Boolean));
+            },
+            err => {
+                logErr("subscribeToCategory", err);
+                setter(eventsByCategory[tag] ?? []);
+                onErr?.(err.message);
+            }
+        );
+    } catch (err) {
+        logErr("subscribeToCategory", err);
+        setter(eventsByCategory[tag] ?? []);
+        onErr?.(err.message);
+        return () => { };
+    }
+}
+
+export function searchEvents(queryStr, events) {
+    if (!queryStr || !queryStr.trim()) return events;
+    const q = queryStr.toLowerCase();
+    return events.filter(e => (
+        (e.title?.toLowerCase().includes(q) ?? false) ||
+        (e.location?.toLowerCase().includes(q) ?? false) ||
+        (e.description?.toLowerCase().includes(q) ?? false)
+    ));
+}
