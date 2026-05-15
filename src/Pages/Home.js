@@ -191,9 +191,11 @@ function EventsSection({ selectedTag, searchQuery, onClearFilter, events }) {
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
                 <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#111", margin: 0 }}>
                     {heading}
-                    <span style={{ fontSize: "13px", fontWeight: 400, color: "#aaa", marginLeft: "8px" }}>
-                        ({finalEvents.length} event{finalEvents.length !== 1 ? "s" : ""})
-                    </span>
+                    {!isFiltered && (
+                        <span style={{ fontSize: "13px", fontWeight: 400, color: "#aaa", marginLeft: "8px" }}>
+                            ({finalEvents.length} event{finalEvents.length !== 1 ? "s" : ""})
+                        </span>
+                    )}
                 </h2>
                 {isFiltered && (
                     <button
