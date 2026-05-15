@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { categoryHeroes } from "../data/eventData";
 import EventCard from "../Components/EventCard";
 import BookingModal from "../Components/BookingModal";
 
