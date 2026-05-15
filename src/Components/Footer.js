@@ -45,13 +45,9 @@ export default function Footer() {
         <footer style={{ background: "#0f3d22", color: "#fff", marginTop: "64px" }}>
 
             {/* ── Top band ── */}
-            <div style={{
+            <div className="px-4 py-8 md:px-10 md:pt-14 md:pb-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 md:gap-10" style={{
                 maxWidth: "1280px",
                 margin: "0 auto",
-                padding: "56px 40px 40px",
-                display: "grid",
-                gridTemplateColumns: "1.8fr 1fr 1fr 1fr",
-                gap: "40px",
             }}>
 
                 {/* Brand column */}
@@ -140,15 +136,9 @@ export default function Footer() {
             <div style={{ borderTop: "1px solid rgba(255,255,255,0.1)", maxWidth: "1280px", margin: "0 auto" }} />
 
             {/* ── Bottom bar ── */}
-            <div style={{
+            <div className="px-4 py-5 md:px-10 flex flex-col md:flex-row items-center justify-between gap-3" style={{
                 maxWidth: "1280px",
                 margin: "0 auto",
-                padding: "20px 40px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                flexWrap: "wrap",
-                gap: "12px",
             }}>
                 <p style={{ fontSize: "12px", color: "rgba(255,255,255,0.35)", margin: 0, fontFamily: "'DM Sans', 'Inter', sans-serif" }}>
                     © {year} AdventSphere. All rights reserved.

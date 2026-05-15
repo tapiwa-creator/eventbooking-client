@@ -48,17 +48,14 @@ const ministryCategories = [
 // ── Hero — static single slide, Matthew 18:20 ────────────────────────────────
 function HeroCarousel() {
     return (
-        <div style={{ position: "relative", width: "100%", height: "380px", overflow: "hidden", borderRadius: "20px", marginBottom: "40px" }}>
+        <div className="relative w-full h-[250px] md:h-[380px] overflow-hidden rounded-[20px] mb-6 md:mb-10">
             <img
                 src="https://images.unsplash.com/photo-1504052434569-70ad5836ab65?w=1200&q=90"
                 alt="SDA Church"
                 style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
             />
             <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to right, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.25) 60%, rgba(0,0,0,0.05) 100%)" }} />
-            <div style={{
-                position: "absolute", left: "48px", right: "48px", top: "50%",
-                transform: "translateY(-50%)", maxWidth: "560px",
-            }}>
+            <div className="absolute left-6 right-6 md:left-12 md:right-12 top-1/2 -translate-y-1/2 max-w-[560px]">
                 <p style={{
                     color: "#fff",
                     fontSize: "clamp(17px, 2.2vw, 26px)",
@@ -159,7 +156,7 @@ function SearchBar({ value, onChange }) {
                 </svg>
                 <input
                     type="text"
-                    placeholder="Search events by name, location or description…"
+                    placeholder="Search programme by name or location…"
                     value={value}
                     onChange={e => onChange(e.target.value)}
                     style={{ flex: 1, border: "none", outline: "none", fontSize: "14px", color: "#111", background: "transparent", fontFamily: "inherit" }}
@@ -178,7 +175,6 @@ function EventsSection({ selectedTag, searchQuery, onClearFilter, events }) {
     const [bookingEvent, setBookingEvent] = useState(null);
 
     const ministry = ministryCategories.find(m => m.tag === selectedTag);
-    // Client-side tag filter first, then search query
     const tagFiltered = selectedTag ? events.filter(e => e.tag === selectedTag) : events;
     const finalEvents = searchEvents(searchQuery, tagFiltered);
     const isFiltered = !!selectedTag;
@@ -188,7 +184,7 @@ function EventsSection({ selectedTag, searchQuery, onClearFilter, events }) {
         ? ministry?.label ?? selectedTag
         : isSearching
             ? `Results for "${searchQuery}"`
-            : "All events";
+            : "All programmes";  // ← renamed
 
     return (
         <section>
@@ -204,7 +200,7 @@ function EventsSection({ selectedTag, searchQuery, onClearFilter, events }) {
                         onClick={onClearFilter}
                         style={{ padding: "7px 16px", fontSize: "13px", fontWeight: 600, color: "#14532d", background: "#dcfce7", border: "1.5px solid #86efac", borderRadius: "999px", cursor: "pointer" }}
                     >
-                        ← Back to all events
+                        ← Back to all programmes
                     </button>
                 )}
             </div>
@@ -266,16 +262,26 @@ export default function Home() {
         setSearchQuery("");
     }
 
+    function handleClearFilter() {
+        setSelectedTag(null);
+        setSearchQuery("");
+    }
+
     return (
         <div style={{ fontFamily: "'DM Sans', 'Inter', sans-serif", background: "#f8f8fa", minHeight: "100vh" }}>
-            <div style={{ padding: "32px 40px" }}>
+            <div className="px-4 py-6 md:px-10 md:py-8">
 
                 {dbError && (
                     <ErrorBanner message={dbError} onDismiss={() => setDbError(null)} />
                 )}
 
                 <HeroCarousel />
-                <CategoryGrid selectedTag={selectedTag} onSelect={handleTagSelect} />
+
+                {/* ── Category grid: only visible when NO tag is selected ── */}
+                {!selectedTag && (
+                    <CategoryGrid selectedTag={selectedTag} onSelect={handleTagSelect} />
+                )}
+
                 <SearchBar value={searchQuery} onChange={setSearchQuery} />
 
                 {loading ? (
@@ -288,7 +294,7 @@ export default function Home() {
                     <EventsSection
                         selectedTag={selectedTag}
                         searchQuery={searchQuery}
-                        onClearFilter={() => setSelectedTag(null)}
+                        onClearFilter={handleClearFilter}
                         events={events}
                     />
                 )}

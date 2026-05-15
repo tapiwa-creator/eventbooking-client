@@ -6,8 +6,7 @@ export default function Header() {
 
     return (
         <>
-            <div style={{
-                padding: "20px 40px 0",
+            <div className="px-4 pt-4 md:px-10 md:pt-5" style={{
                 background: "#f8f8fa",
                 fontFamily: "'DM Sans', 'Inter', sans-serif",
             }}>
