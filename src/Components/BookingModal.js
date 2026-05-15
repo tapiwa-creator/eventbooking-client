@@ -523,7 +523,7 @@ export default function BookingModal({ event, onClose, onBookingSuccess }) {
                     {/* Qty + Subtotal */}
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "20px" }}>
                         <div>
-                            <p style={labelStyle}>Tickets</p>
+                            <p style={labelStyle}>Registration Pass</p>
                             <QtyInput value={qty} onChange={setQty} />
                         </div>
                         <div>
@@ -537,7 +537,7 @@ export default function BookingModal({ event, onClose, onBookingSuccess }) {
                                     {sym}{subtotal}
                                 </span>
                                 <span style={{ color: "#4ade80", fontSize: "11px", marginTop: "2px" }}>
-                                    {sym}{unitPrice} / {unitLabel}
+                                    {sym}{unitPrice} / member
                                 </span>
                             </div>
                         </div>
