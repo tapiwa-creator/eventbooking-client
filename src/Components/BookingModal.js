@@ -1,6 +1,10 @@
 import { useState } from "react";
+import axios from "axios";
 import { createBooking } from "../Services/BookingServices";
 
+/* =========================
+   CONFIG
+========================= */
 const PAYMENT_METHODS = [
     { id: "ecocash", label: "EcoCash" },
     { id: "innbucks", label: "InnBucks" },
@@ -8,6 +12,9 @@ const PAYMENT_METHODS = [
 
 const SERVICE_FEE_RATE = 0.035;
 
+/* =========================
+   HELPERS
+========================= */
 function isValidZimPhone(val) {
     return /^07[178]\d{7}$/.test(val.replace(/\s/g, ""));
 }
@@ -135,9 +142,9 @@ function EventHero({ event, heroImage, onClose }) {
     );
 }
 
-// =============================================================================
-// MAIN COMPONENT
-// =============================================================================
+/* =========================
+   MAIN COMPONENT
+========================= */
 export default function BookingModal({ event, onClose, onBookingSuccess }) {
 
     // ── Does this event use tiered packages? ──────────────────────────────────
@@ -169,8 +176,6 @@ export default function BookingModal({ event, onClose, onBookingSuccess }) {
     })();
 
     // ── State ─────────────────────────────────────────────────────────────────
-    //   "tier" step  →  user picks a package  →  "form" step  →  confirm
-    //   flat/free events skip straight to "form"
     const [step, setStep] = useState(hasTiers ? "tier" : "form");
     const [selectedTierId, setSelectedTierId] = useState(null); // nothing pre-selected
     const [qty, setQty] = useState(1);
@@ -178,6 +183,8 @@ export default function BookingModal({ event, onClose, onBookingSuccess }) {
     const [confirmed, setConfirmed] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [bookingError, setBookingError] = useState(null);
+    const [paymentStatus, setPaymentStatus] = useState("");
+    
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [phone, setPhone] = useState("");
@@ -190,7 +197,6 @@ export default function BookingModal({ event, onClose, onBookingSuccess }) {
     const subtotal = unitPrice * qty;
     const fee = parseFloat((subtotal * SERVICE_FEE_RATE).toFixed(2));
     const total = (subtotal + fee).toFixed(2);
-
     const heroImage = (() => {
         const url = event.imageUrl || event.image || null;
         if (!url || url.startsWith("blob:")) return null;
@@ -199,19 +205,73 @@ export default function BookingModal({ event, onClose, onBookingSuccess }) {
 
     const handleBackdrop = e => { if (e.target === e.currentTarget) onClose(); };
 
-    // ── Submit ────────────────────────────────────────────────────────────────
-    const handleConfirm = async () => {
-        const errs = {};
-        if (!name.trim()) errs.name = "Full name is required";
-        if (!email.trim()) errs.email = "Email address is required";
-        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errs.email = "Enter a valid email address";
-        if (!phone.trim()) errs.phone = "Phone number is required";
-        else if (!isValidZimPhone(phone)) errs.phone = "Enter a valid Zim number";
-        setErrors(errs);
-        if (Object.keys(errs).length > 0) return;
+    // =========================================================================
+    // PAYNOW LOGIC
+    // =========================================================================
+    const makePayment = async () => {
+        try {
+            setPaymentStatus("Initiating payment...");
 
-        setIsSubmitting(true);
-        setBookingError(null);
+            const res = await axios.post(
+                "http://localhost:5000/api/paynow/pay",
+                {
+                    email,
+                    phone,
+                    amount: parseFloat(total),
+                    eventName: event.title
+                }
+            );
+
+            if (res.data.success) {
+                setPaymentStatus("Waiting for payment to be completed on your phone...");
+
+                checkPaymentStatus(res.data.pollUrl);
+            } else {
+                setBookingError(res.data.error || "Payment failed");
+                setIsSubmitting(false);
+                setPaymentStatus("");
+            }
+
+        } catch (err) {
+            console.log(err);
+            const serverError = err.response?.data?.error;
+            setBookingError(serverError || "Payment request failed. Please check your connection or server status.");
+            setIsSubmitting(false);
+            setPaymentStatus("");
+        }
+    };
+
+    const checkPaymentStatus = (pollUrl) => {
+        const interval = setInterval(async () => {
+            try {
+                const res = await axios.post(
+                    "http://localhost:5000/api/paynow/status",
+                    { pollUrl }
+                );
+
+                const status = res.data.status?.toLowerCase();
+
+                setPaymentStatus(`Payment status: ${res.data.status}`);
+
+                if (status === "paid" || status === "awaiting delivery") {
+                    clearInterval(interval);
+                    saveBooking();
+                }
+
+                if (status === "cancelled" || status === "failed") {
+                    clearInterval(interval);
+                    setBookingError("Payment failed or cancelled");
+                    setIsSubmitting(false);
+                    setPaymentStatus("");
+                }
+
+            } catch (err) {
+                console.log(err);
+            }
+        }, 5000);
+    };
+
+    const saveBooking = async () => {
         try {
             const bookingData = {
                 eventId: event.id,
@@ -229,18 +289,45 @@ export default function BookingModal({ event, onClose, onBookingSuccess }) {
                 totalAmount: parseFloat(total),
                 currency: sym,
                 paymentMethod: payment,
-                bookingDate: new Date().toISOString(),
+                paymentStatus: "paid",
                 status: "confirmed",
+                bookingDate: new Date().toISOString(),
             };
-            const bookingId = await createBooking(bookingData);
-            console.log("Booking saved:", bookingId);
+            
+            await createBooking(bookingData);
+            
+            setPaymentStatus("");
+            setIsSubmitting(false);
             setConfirmed(true);
+            
             if (onBookingSuccess) onBookingSuccess(bookingData);
         } catch (err) {
-            console.error("Booking failed:", err);
-            setBookingError("Failed to confirm booking. Please try again.");
-        } finally {
+            console.error("Booking save failed:", err);
+            setBookingError("Failed to save booking. Please contact support.");
             setIsSubmitting(false);
+            setPaymentStatus("");
+        }
+    };
+
+    // ── Submit ────────────────────────────────────────────────────────────────
+    const handleConfirm = async () => {
+        const errs = {};
+        if (!name.trim()) errs.name = "Full name is required";
+        if (!email.trim()) errs.email = "Email address is required";
+        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errs.email = "Enter a valid email address";
+        if (!phone.trim()) errs.phone = "Phone number is required";
+        else if (!isValidZimPhone(phone)) errs.phone = "Enter a valid Zim number";
+        setErrors(errs);
+        if (Object.keys(errs).length > 0) return;
+
+        setIsSubmitting(true);
+        setBookingError(null);
+        
+        if (total > 0) {
+            await makePayment();
+        } else {
+            // Free event logic
+            saveBooking();
         }
     };
 
@@ -296,8 +383,6 @@ export default function BookingModal({ event, onClose, onBookingSuccess }) {
 
     // =========================================================================
     // STEP 1 — TIER PICKER
-    // Shown only for package events. Nothing pre-selected.
-    // Price breakdown is NOT shown here — user just picks a tier and continues.
     // =========================================================================
     if (step === "tier") {
         return (
@@ -337,7 +422,6 @@ export default function BookingModal({ event, onClose, onBookingSuccess }) {
                                         onMouseOver={e => { if (!active) e.currentTarget.style.borderColor = "#86efac"; }}
                                         onMouseOut={e => { if (!active) e.currentTarget.style.borderColor = "#e5e7eb"; }}
                                     >
-                                        {/* Icon + label */}
                                         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                                             <div style={{
                                                 width: "42px", height: "42px", borderRadius: "50%", flexShrink: 0,
@@ -360,7 +444,6 @@ export default function BookingModal({ event, onClose, onBookingSuccess }) {
                                             </div>
                                         </div>
 
-                                        {/* Price + radio */}
                                         <div style={{ display: "flex", alignItems: "center", gap: "12px", flexShrink: 0 }}>
                                             <div style={{ textAlign: "right" }}>
                                                 <div style={{ fontSize: "17px", fontWeight: 800, color: active ? "#14532d" : "#18103a" }}>
@@ -389,7 +472,6 @@ export default function BookingModal({ event, onClose, onBookingSuccess }) {
                             })}
                         </div>
 
-                        {/* Continue — disabled until a tier is tapped */}
                         <button
                             onClick={() => { if (selectedTierId) setStep("form"); }}
                             disabled={!selectedTierId}
@@ -423,8 +505,6 @@ export default function BookingModal({ event, onClose, onBookingSuccess }) {
 
     // =========================================================================
     // STEP 2 — BOOKING FORM
-    // Tier already chosen. Shows read-only tier chip, attendee fields,
-    // qty, payment method, price breakdown, and confirm button.
     // =========================================================================
     return (
         <div onClick={handleBackdrop} style={backdropStyle}>
@@ -444,8 +524,22 @@ export default function BookingModal({ event, onClose, onBookingSuccess }) {
                             padding: "12px", marginBottom: "16px", color: "#dc2626", fontSize: "13px", textAlign: "center",
                         }}>{bookingError}</div>
                     )}
+                    
+                    {paymentStatus && (
+                        <div style={{
+                            background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "12px",
+                            padding: "12px", marginBottom: "16px", color: "#1d4ed8", fontSize: "13px", textAlign: "center",
+                            fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: "8px"
+                        }}>
+                            <div style={{
+                                width: "14px", height: "14px",
+                                border: "2px solid rgba(29,78,216,0.3)", borderTopColor: "#1d4ed8",
+                                borderRadius: "50%", animation: "spin 0.7s linear infinite",
+                            }} />
+                            {paymentStatus}
+                        </div>
+                    )}
 
-                    {/* Event description */}
                     <div style={{
                         background: "#f8f8fa", border: "1.5px solid #f0f0f2",
                         borderRadius: "12px", padding: "13px 15px", marginBottom: "20px",
@@ -455,7 +549,6 @@ export default function BookingModal({ event, onClose, onBookingSuccess }) {
                         </p>
                     </div>
 
-                    {/* ── Selected tier chip — only for package events ── */}
                     {hasTiers && activeTier && (
                         <div style={{ marginBottom: "20px" }}>
                             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
@@ -492,7 +585,6 @@ export default function BookingModal({ event, onClose, onBookingSuccess }) {
                         </div>
                     )}
 
-                    {/* Attendee details */}
                     <div style={{ marginBottom: "20px" }}>
                         <p style={labelStyle}>Attendee details</p>
                         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
@@ -520,7 +612,6 @@ export default function BookingModal({ event, onClose, onBookingSuccess }) {
                         </div>
                     </div>
 
-                    {/* Qty + Subtotal */}
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "20px" }}>
                         <div>
                             <p style={labelStyle}>Registration Pass</p>
@@ -543,7 +634,6 @@ export default function BookingModal({ event, onClose, onBookingSuccess }) {
                         </div>
                     </div>
 
-                    {/* Payment method */}
                     <div style={{ marginBottom: "18px" }}>
                         <p style={labelStyle}>Payment method</p>
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
@@ -579,7 +669,6 @@ export default function BookingModal({ event, onClose, onBookingSuccess }) {
                         </div>
                     </div>
 
-                    {/* Price breakdown */}
                     <div style={{
                         background: "#f8f8fa", border: "1.5px solid #f0f0f2",
                         borderRadius: "12px", padding: "14px 16px", marginBottom: "18px",
@@ -603,7 +692,6 @@ export default function BookingModal({ event, onClose, onBookingSuccess }) {
                         </div>
                     </div>
 
-                    {/* Confirm */}
                     <button onClick={handleConfirm} disabled={isSubmitting} style={{
                         width: "100%", padding: "14px", border: "none", borderRadius: "999px",
                         background: isSubmitting ? "#9ca3af" : "#14532d",

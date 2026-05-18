@@ -56,7 +56,7 @@ export default function Header() {
                                 letterSpacing: "0.01em",
                                 lineHeight: 1,
                             }}>
-                                Your gateway to adventist events
+                                Your gateway to adventist programmes
                             </span>
                         </div>
                     </div>
