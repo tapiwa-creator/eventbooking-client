@@ -223,7 +223,7 @@ export default function BookingModal({ event, onClose, onBookingSuccess }) {
             );
 
             if (res.data.success) {
-                setPaymentStatus("Waiting for payment to be completed on your phone...");
+                setPaymentStatus("A prompt has been sent to your phone. Please enter your PIN to confirm the payment.");
 
                 checkPaymentStatus(res.data.pollUrl);
             } else {
@@ -242,7 +242,11 @@ export default function BookingModal({ event, onClose, onBookingSuccess }) {
     };
 
     const checkPaymentStatus = (pollUrl) => {
+        let attempts = 0;
+        const maxAttempts = 4; // 20 seconds total (4 attempts * 5000ms)
+
         const interval = setInterval(async () => {
+            attempts++;
             try {
                 const res = await axios.post(
                     "http://localhost:5000/api/paynow/status",
@@ -251,11 +255,10 @@ export default function BookingModal({ event, onClose, onBookingSuccess }) {
 
                 const status = res.data.status?.toLowerCase();
 
-                setPaymentStatus(`Payment status: ${res.data.status}`);
-
                 if (status === "paid" || status === "awaiting delivery") {
                     clearInterval(interval);
                     saveBooking();
+                    return;
                 }
 
                 if (status === "cancelled" || status === "failed") {
@@ -263,10 +266,24 @@ export default function BookingModal({ event, onClose, onBookingSuccess }) {
                     setBookingError("Payment failed or cancelled");
                     setIsSubmitting(false);
                     setPaymentStatus("");
+                    return;
+                }
+
+                if (attempts >= maxAttempts) {
+                    clearInterval(interval);
+                    setBookingError("Payment timed out after 20 seconds. If you were charged, please contact support.");
+                    setIsSubmitting(false);
+                    setPaymentStatus("");
                 }
 
             } catch (err) {
                 console.log(err);
+                if (attempts >= maxAttempts) {
+                    clearInterval(interval);
+                    setBookingError("Payment timed out due to network issues.");
+                    setIsSubmitting(false);
+                    setPaymentStatus("");
+                }
             }
         }, 5000);
     };
