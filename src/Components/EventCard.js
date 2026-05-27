@@ -1,6 +1,12 @@
 import React from "react";
 
 export default function EventCard({ event, onBook }) {
+    const sym = (() => {
+        const MAP = { ZAR: "R", USD: "$", GBP: "£", ZiG: "ZiG " };
+        return MAP[event.pricing?.currency] ?? "$";
+    })();
+    const hasTiers = (event.pricing?.mode === "packages" || event.pricing?.mode === "classified") && event.tiers && event.tiers.length > 0 && event.tiers.some(t => t.label && t.label.trim() !== "");
+
     return (
         <div
             style={{
@@ -43,16 +49,46 @@ export default function EventCard({ event, onBook }) {
                     position: "absolute",
                     bottom: "12px",
                     right: "12px",
-                    background: "rgba(255, 255, 255, 0.9)",
-                    backdropFilter: "blur(4px)",
-                    color: "#111",
-                    fontSize: "13px",
-                    fontWeight: 800,
-                    padding: "6px 12px",
-                    borderRadius: "12px",
-                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)"
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "6px",
+                    alignItems: "flex-end"
                 }}>
-                    {event.price}
+                    {hasTiers ? (
+                        event.tiers.filter(t => t.label && t.label.trim()).map((t, idx) => {
+                            const priceNum = parseFloat(String(t.price).replace(/[^0-9.]/g, "")) || 0;
+                            return (
+                                <div key={idx} style={{
+                                    background: "rgba(255, 255, 255, 0.92)",
+                                    backdropFilter: "blur(4px)",
+                                    color: "#111",
+                                    fontSize: "12px",
+                                    padding: "5px 12px",
+                                    borderRadius: "12px",
+                                    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                                    display: "flex",
+                                    gap: "8px",
+                                    alignItems: "center"
+                                }}>
+                                    <span style={{ color: "#555", fontWeight: 600, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.05em" }}>{t.label}</span>
+                                    <span style={{ fontWeight: 800, color: "#14532d" }}>{priceNum === 0 ? "Free" : `${sym}${priceNum}`}</span>
+                                </div>
+                            );
+                        })
+                    ) : (
+                        <div style={{
+                            background: "rgba(255, 255, 255, 0.95)",
+                            backdropFilter: "blur(4px)",
+                            color: "#111",
+                            fontSize: "13px",
+                            fontWeight: 800,
+                            padding: "6px 12px",
+                            borderRadius: "12px",
+                            boxShadow: "0 4px 12px rgba(0,0,0,0.15)"
+                        }}>
+                            Reg Fee: {event.price}
+                        </div>
+                    )}
                 </div>
             </div>
 

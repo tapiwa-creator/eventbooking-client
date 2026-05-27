@@ -34,9 +34,11 @@ app.post("/api/paynow/pay", async (req, res) => {
             eventName
         } = req.body;
 
+        const authEmail = process.env.PAYNOW_MERCHANT_EMAIL || email;
+
         const payment = paynow.createPayment(
             eventName,
-            email
+            authEmail
         );
 
         payment.add("Event Ticket", amount);
@@ -55,7 +57,7 @@ app.post("/api/paynow/pay", async (req, res) => {
             });
         }
 
-        console.log("Paynow Error Response:", response ? response.error : "No response");
+// removed // console.log
 
         res.status(400).json({
             success: false,
@@ -64,7 +66,7 @@ app.post("/api/paynow/pay", async (req, res) => {
 
     } catch (error) {
 
-        console.log(error);
+// removed // console.log
 
         res.status(500).json({
             success: false,
@@ -99,12 +101,12 @@ app.post("/api/paynow/status", async (req, res) => {
 // CALLBACK
 app.post("/api/paynow/update", (req, res) => {
 
-    console.log("Payment Update:", req.body);
+// removed // console.log
 
     res.sendStatus(200);
 });
 
 
 app.listen(5000, () => {
-    console.log("Server running on port 5000");
+// removed // console.log
 });

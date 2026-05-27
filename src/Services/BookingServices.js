@@ -14,7 +14,7 @@ export async function createBooking(bookingData) {
         };
 
         const docRef = await addDoc(bookingsRef, bookingPayload);
-        console.log("✅ Booking saved:", docRef.id);
+// removed // console.log
 
         return docRef.id;
     } catch (error) {

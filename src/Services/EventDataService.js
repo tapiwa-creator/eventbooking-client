@@ -38,7 +38,7 @@ function formatDate(dateStr, timeStr) {
     }
 }
 
-function extractPrice(pricing, fallbackUnit = "ticket") {
+function extractPrice(pricing, tiers, fallbackUnit = "ticket") {
     if (!pricing) return null;
     const sym = SYM[pricing.currency] ?? "$";
     const unit = pricing.unit ?? fallbackUnit;
@@ -47,8 +47,8 @@ function extractPrice(pricing, fallbackUnit = "ticket") {
         return { price: num > 0 ? `${sym}${num}` : "Free", priceNum: num, unit };
     }
     const items =
-        pricing.mode === "packages" ? (pricing.packages ?? []) :
-            pricing.mode === "classified" ? (pricing.tiers ?? []) : [];
+        pricing.mode === "packages" ? (tiers ?? pricing.packages ?? []) :
+            pricing.mode === "classified" ? (tiers ?? pricing.tiers ?? []) : [];
     const prices = items.map(i => parseFloat(String(i.price ?? "0").replace(/[^0-9.]/g, ""))).filter(n => n > 0);
     const min = prices.length ? Math.min(...prices) : 0;
     // No "From" prefix — just show the minimum price
@@ -61,7 +61,7 @@ function transform(snapshot) {
     const tag = (d.category ?? d.tag ?? "ARTS").toUpperCase();
 
     let price, priceNum, unit;
-    const fromPricing = extractPrice(d.pricing, d.unit ?? "ticket");
+    const fromPricing = extractPrice(d.pricing, d.tiers, d.unit ?? "ticket");
     if (fromPricing) {
         ({ price, priceNum, unit } = fromPricing);
     } else {
@@ -94,6 +94,9 @@ function transform(snapshot) {
         priceNum,
         unit,
         pricing: d.pricing ?? null,
+        tiers: (Array.isArray(d.tiers) && d.tiers.length > 0 ? d.tiers : null) ?? 
+               (Array.isArray(d.pricing?.packages) && d.pricing?.packages.length > 0 ? d.pricing.packages : null) ?? 
+               d.pricing?.tiers ?? [],
         status: d.status ?? "Upcoming",
         totalCapacity: d.totalCapacity ? Number(d.totalCapacity) : null,
         bookedCount: Number(d.bookedCount ?? 0),

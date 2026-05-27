@@ -94,11 +94,12 @@ function CalendarIcon() {
     );
 }
 
-function tierIcon(id, idx) {
-    if (id === "general" || idx === 0) return "🎟";
-    if (id === "vip" || idx === 1) return "⭐";
-    if (id === "vvip" || idx === 2) return "👑";
-    return "🏷";
+function tierIcon() {
+    return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15 5v2"/><path d="M15 11v2"/><path d="M15 17v2"/><path d="M5 5h14a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4V7a2 2 0 0 1 2-2z"/>
+        </svg>
+    );
 }
 
 function EventHero({ event, heroImage, onClose }) {
@@ -149,10 +150,15 @@ export default function BookingModal({ event, onClose, onBookingSuccess }) {
 
     // ── Does this event use tiered packages? ──────────────────────────────────
     const pricingMode = event.pricing?.mode ?? "flat";
-    const hasTiers = pricingMode === "packages"
+    const hasTiers = (pricingMode === "packages" || pricingMode === "classified")
         && Array.isArray(event.tiers)
         && event.tiers.length > 0
         && event.tiers.some(t => t.label && t.label.trim() !== "");
+
+    const validTiers = hasTiers ? event.tiers.filter(t => t.label && t.label.trim()) : [];
+    const isSingleTier = validTiers.length === 1;
+    const initialStep = (hasTiers && !isSingleTier) ? "tier" : "form";
+    const initialTierId = isSingleTier ? validTiers[0].id : null;
 
     // Currency symbol
     const sym = (() => {
@@ -176,8 +182,8 @@ export default function BookingModal({ event, onClose, onBookingSuccess }) {
     })();
 
     // ── State ─────────────────────────────────────────────────────────────────
-    const [step, setStep] = useState(hasTiers ? "tier" : "form");
-    const [selectedTierId, setSelectedTierId] = useState(null); // nothing pre-selected
+    const [step, setStep] = useState(initialStep);
+    const [selectedTierId, setSelectedTierId] = useState(initialTierId);
     const [qty, setQty] = useState(1);
     const [payment, setPayment] = useState("ecocash");
     const [confirmed, setConfirmed] = useState(false);
@@ -233,7 +239,7 @@ export default function BookingModal({ event, onClose, onBookingSuccess }) {
             }
 
         } catch (err) {
-            console.log(err);
+            // removed // console.log
             const serverError = err.response?.data?.error;
             setBookingError(serverError || "Payment request failed. Please check your connection or server status.");
             setIsSubmitting(false);
@@ -277,7 +283,7 @@ export default function BookingModal({ event, onClose, onBookingSuccess }) {
                 }
 
             } catch (err) {
-                console.log(err);
+                // removed // console.log
                 if (attempts >= maxAttempts) {
                     clearInterval(interval);
                     setBookingError("Payment timed out due to network issues.");
@@ -372,10 +378,10 @@ export default function BookingModal({ event, onClose, onBookingSuccess }) {
                         </svg>
                     </div>
                     <h3 style={{ color: "#18103a", fontSize: "22px", fontWeight: 800, margin: "0 0 8px", fontFamily: "Georgia,serif" }}>
-                        Booking Confirmed!
+                        Registration Confirmed!
                     </h3>
                     <p style={{ color: "#9ca3af", fontSize: "13px", margin: "0 0 4px" }}>
-                        Booked for <span style={{ color: "#18103a", fontWeight: 600 }}>{name.trim()}</span>
+                        Registered for <span style={{ color: "#18103a", fontWeight: 600 }}>{name.trim()}</span>
                     </p>
                     <p style={{ color: "#6b7280", fontSize: "13.5px", lineHeight: 1.6, margin: "0 0 4px" }}>
                         {qty} {unitLabel}{qty > 1 ? "s" : ""}{activeTier ? ` · ${activeTier.label}` : ""} for
@@ -386,7 +392,7 @@ export default function BookingModal({ event, onClose, onBookingSuccess }) {
                     <p style={{ color: "#9ca3af", fontSize: "13px", margin: "0 0 28px" }}>
                         Total paid:{" "}
                         <span style={{ color: "#14532d", fontWeight: 700 }}>{sym}{total}</span>{" "}
-                        via {PAYMENT_METHODS.find(m => m.id === payment)?.label}
+                        {total > 0 ? `via ${PAYMENT_METHODS.find(m => m.id === payment)?.label}` : ""}
                     </p>
                     <button onClick={onClose} style={{
                         width: "100%", padding: "13px", background: "#14532d",
@@ -414,10 +420,10 @@ export default function BookingModal({ event, onClose, onBookingSuccess }) {
 
                     <div style={{ padding: "24px 22px 28px" }}>
                         <p style={{ margin: "0 0 4px", fontSize: "17px", fontWeight: 800, color: "#18103a", fontFamily: "Georgia,serif" }}>
-                            Choose your ticket
+                            Choose Your Admission Option
                         </p>
                         <p style={{ margin: "0 0 20px", fontSize: "13px", color: "#9ca3af" }}>
-                            Select a ticket type to see pricing and continue booking
+                            Select an option to see pricing and continue registration
                         </p>
 
                         <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "24px" }}>
@@ -506,7 +512,7 @@ export default function BookingModal({ event, onClose, onBookingSuccess }) {
                         >
                             {selectedTierId
                                 ? `Continue with ${event.tiers.find(t => t.id === selectedTierId)?.label}`
-                                : "Select a ticket to continue"
+                                : "Select an option to continue"
                             }
                             {selectedTierId && (
                                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -569,15 +575,17 @@ export default function BookingModal({ event, onClose, onBookingSuccess }) {
                     {hasTiers && activeTier && (
                         <div style={{ marginBottom: "20px" }}>
                             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
-                                <p style={labelStyle}>Ticket type</p>
-                                <button
-                                    onClick={() => setStep("tier")}
-                                    style={{
-                                        background: "none", border: "none", cursor: "pointer",
-                                        fontSize: "12px", fontWeight: 700, color: "#7c3aed",
-                                        fontFamily: "inherit", padding: 0,
-                                    }}
-                                >← Change</button>
+                                <p style={labelStyle}>Registration type</p>
+                                {!isSingleTier && (
+                                    <button
+                                        onClick={() => setStep("tier")}
+                                        style={{
+                                            background: "none", border: "none", cursor: "pointer",
+                                            fontSize: "12px", fontWeight: 700, color: "#7c3aed",
+                                            fontFamily: "inherit", padding: 0,
+                                        }}
+                                    >← Change</button>
+                                )}
                             </div>
                             <div style={{
                                 display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -651,40 +659,42 @@ export default function BookingModal({ event, onClose, onBookingSuccess }) {
                         </div>
                     </div>
 
-                    <div style={{ marginBottom: "18px" }}>
-                        <p style={labelStyle}>Payment method</p>
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                            {PAYMENT_METHODS.map(m => {
-                                const active = payment === m.id;
-                                return (
-                                    <button key={m.id} onClick={() => setPayment(m.id)} style={{
-                                        display: "flex", alignItems: "center", gap: "10px",
-                                        padding: "11px 14px", borderRadius: "12px", cursor: "pointer",
-                                        background: active ? "#dcfce7" : "#fafafa",
-                                        border: `1.5px solid ${active ? "#14532d" : "#e5e7eb"}`,
-                                        fontFamily: "inherit", transition: "all 0.15s",
-                                    }}>
-                                        <img src={m.id === "ecocash" ? "/eco.png" : "/inn.png"} alt={m.label}
-                                            style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover" }} />
-                                        <span style={{ fontSize: "13px", fontWeight: 600, color: active ? "#14532d" : "#6b7280" }}>
-                                            {m.label}
-                                        </span>
-                                        {active && (
-                                            <span style={{
-                                                marginLeft: "auto", width: "18px", height: "18px",
-                                                borderRadius: "50%", background: "#14532d",
-                                                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-                                            }}>
-                                                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                                                    <polyline points="2,5 4,7.5 8,3" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" fill="none" />
-                                                </svg>
+                    {total > 0 && (
+                        <div style={{ marginBottom: "18px" }}>
+                            <p style={labelStyle}>Payment method</p>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                                {PAYMENT_METHODS.map(m => {
+                                    const active = payment === m.id;
+                                    return (
+                                        <button key={m.id} onClick={() => setPayment(m.id)} style={{
+                                            display: "flex", alignItems: "center", gap: "10px",
+                                            padding: "11px 14px", borderRadius: "12px", cursor: "pointer",
+                                            background: active ? "#dcfce7" : "#fafafa",
+                                            border: `1.5px solid ${active ? "#14532d" : "#e5e7eb"}`,
+                                            fontFamily: "inherit", transition: "all 0.15s",
+                                        }}>
+                                            <img src={m.id === "ecocash" ? "/eco.png" : "/inn.png"} alt={m.label}
+                                                style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover" }} />
+                                            <span style={{ fontSize: "13px", fontWeight: 600, color: active ? "#14532d" : "#6b7280" }}>
+                                                {m.label}
                                             </span>
-                                        )}
-                                    </button>
-                                );
-                            })}
+                                            {active && (
+                                                <span style={{
+                                                    marginLeft: "auto", width: "18px", height: "18px",
+                                                    borderRadius: "50%", background: "#14532d",
+                                                    display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                                                }}>
+                                                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                                                        <polyline points="2,5 4,7.5 8,3" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" fill="none" />
+                                                    </svg>
+                                                </span>
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                            </div>
                         </div>
-                    </div>
+                    )}
 
                     <div style={{
                         background: "#f8f8fa", border: "1.5px solid #f0f0f2",
@@ -733,7 +743,7 @@ export default function BookingModal({ event, onClose, onBookingSuccess }) {
                             </>
                         ) : (
                             <>
-                                Confirm Booking · {sym}{total}
+                                Confirm Registration · {sym}{total}
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                     <path d="M7 17L17 7M7 7h10v10" />
                                 </svg>
