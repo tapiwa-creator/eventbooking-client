@@ -89,6 +89,7 @@ function transform(snapshot) {
         description: d.description ?? "",
         location: d.location ?? "Location TBD",
         date: formatDate(d.date, d.time),
+        rawDate: d.date,
         image,
         price,
         priceNum,
@@ -110,6 +111,28 @@ function logErr(fn, err) {
     console.error(`❌ EventDataService.${fn}:`, err?.code ?? "", err?.message ?? err);
 }
 
+function isPastEvent(dateStr, rawDateStr) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (rawDateStr) {
+        try {
+            const eventDate = new Date(rawDateStr);
+            if (!isNaN(eventDate.getTime())) return eventDate < today;
+        } catch {}
+    }
+    
+    if (dateStr) {
+        try {
+            let cleanStr = dateStr.split("–").pop().split("-").pop().trim();
+            cleanStr = cleanStr.replace(/^[a-zA-Z]+,\s*/, "");
+            const eventDate = new Date(cleanStr + ", " + today.getFullYear());
+            if (!isNaN(eventDate.getTime())) return eventDate < today;
+        } catch {}
+    }
+    return false;
+}
+
 export function subscribeToAllEvents(setter, onErr) {
     try {
         const q = query(col(), orderBy("createdAt", "desc"));
@@ -117,18 +140,18 @@ export function subscribeToAllEvents(setter, onErr) {
             q,
             { includeMetadataChanges: false },
             snap => {
-                if (snap.empty) { setter(allEvents); return; }
-                setter(snap.docs.map(transform).filter(Boolean));
+                if (snap.empty) { setter(allEvents.filter(e => !isPastEvent(e.date, e.rawDate))); return; }
+                setter(snap.docs.map(transform).filter(e => e && !isPastEvent(e.date, e.rawDate)));
             },
             err => {
                 logErr("subscribeToAllEvents", err);
-                setter(allEvents);
+                setter(allEvents.filter(e => !isPastEvent(e.date, e.rawDate)));
                 onErr?.(err.message);
             }
         );
     } catch (err) {
         logErr("subscribeToAllEvents", err);
-        setter(allEvents);
+        setter(allEvents.filter(e => !isPastEvent(e.date, e.rawDate)));
         onErr?.(err.message);
         return () => { };
     }
@@ -141,18 +164,18 @@ export function subscribeToCategory(tag, setter, onErr) {
             q,
             { includeMetadataChanges: false },
             snap => {
-                if (snap.empty) { setter(eventsByCategory[tag] ?? []); return; }
-                setter(snap.docs.map(transform).filter(Boolean));
+                if (snap.empty) { setter((eventsByCategory[tag] ?? []).filter(e => !isPastEvent(e.date, e.rawDate))); return; }
+                setter(snap.docs.map(transform).filter(e => e && !isPastEvent(e.date, e.rawDate)));
             },
             err => {
                 logErr("subscribeToCategory", err);
-                setter(eventsByCategory[tag] ?? []);
+                setter((eventsByCategory[tag] ?? []).filter(e => !isPastEvent(e.date, e.rawDate)));
                 onErr?.(err.message);
             }
         );
     } catch (err) {
         logErr("subscribeToCategory", err);
-        setter(eventsByCategory[tag] ?? []);
+        setter((eventsByCategory[tag] ?? []).filter(e => !isPastEvent(e.date, e.rawDate)));
         onErr?.(err.message);
         return () => { };
     }

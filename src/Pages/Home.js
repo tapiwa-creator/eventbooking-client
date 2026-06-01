@@ -287,10 +287,19 @@ export default function Home() {
                 <SearchBar value={searchQuery} onChange={setSearchQuery} />
 
                 {loading ? (
-                    <div style={{ textAlign: "center", padding: "60px 0", color: "#9ca3af" }}>
-                        <div style={{ width: "32px", height: "32px", border: "3px solid #dcfce7", borderTopColor: "#14532d", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 12px" }} />
-                        <p style={{ fontSize: "14px", margin: 0 }}>Loading events…</p>
-                        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "24px" }}>
+                        {[1, 2, 3, 4, 5, 6].map(i => (
+                            <div key={i} style={{ background: "#fff", borderRadius: "16px", overflow: "hidden", border: "1px solid #f0f0f5" }}>
+                                <div style={{ height: "180px", background: "#e5e7eb", animation: "pulse 1.5s infinite ease-in-out" }} />
+                                <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "12px" }}>
+                                    <div style={{ height: "24px", background: "#e5e7eb", borderRadius: "4px", width: "80%", animation: "pulse 1.5s infinite ease-in-out" }} />
+                                    <div style={{ height: "14px", background: "#e5e7eb", borderRadius: "4px", width: "40%", animation: "pulse 1.5s infinite ease-in-out" }} />
+                                    <div style={{ height: "14px", background: "#e5e7eb", borderRadius: "4px", width: "60%", animation: "pulse 1.5s infinite ease-in-out" }} />
+                                    <div style={{ marginTop: "16px", height: "38px", background: "#e5e7eb", borderRadius: "10px", animation: "pulse 1.5s infinite ease-in-out" }} />
+                                </div>
+                            </div>
+                        ))}
+                        <style>{`@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }`}</style>
                     </div>
                 ) : (
                     <EventsSection
