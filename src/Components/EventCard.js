@@ -115,6 +115,16 @@ export default function EventCard({ event, onBook }) {
                     <span style={{ fontSize: "13px", color: "#555", fontWeight: 500 }}>{event.date}</span>
                 </div>
 
+                {event.deadline && (
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px" }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                        <span style={{ fontSize: "12px", color: "#dc2626", fontWeight: 600 }}>Reg. Deadline: {event.deadline}</span>
+                    </div>
+                )}
+
                 <div style={{ display: "flex", alignItems: "flex-start", gap: "6px", marginBottom: "16px" }}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginTop: "2px", flexShrink: 0 }}>
                         <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>

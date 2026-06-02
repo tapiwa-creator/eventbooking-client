@@ -253,7 +253,21 @@ export default function Home() {
 
     useEffect(() => {
         const unsub = subscribeToAllEvents(
-            (data) => { setEvents(data); setLoading(false); },
+            (data) => {
+                const now = new Date();
+                const year = now.getFullYear();
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const day = String(now.getDate()).padStart(2, '0');
+                const todayStr = `${year}-${month}-${day}`;
+
+                const activeEvents = data.filter(e => {
+                    if (!e.deadline) return true;
+                    return e.deadline >= todayStr;
+                });
+                
+                setEvents(activeEvents);
+                setLoading(false);
+            },
             (errMsg) => { setDbError(errMsg); setLoading(false); },
         );
         return () => unsub();

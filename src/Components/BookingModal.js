@@ -343,6 +343,19 @@ export default function BookingModal({ event, onClose, onBookingSuccess }) {
         setErrors(errs);
         if (Object.keys(errs).length > 0) return;
 
+        // Double-check deadline just in case
+        if (event.deadline) {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const todayStr = `${year}-${month}-${day}`;
+            if (event.deadline < todayStr) {
+                setBookingError("Registration for this event has closed as the deadline has passed.");
+                return;
+            }
+        }
+
         setIsSubmitting(true);
         setBookingError(null);
         

@@ -90,6 +90,7 @@ function transform(snapshot) {
         location: d.location ?? "Location TBD",
         date: formatDate(d.date, d.time),
         rawDate: d.date,
+        deadline: d.deadline ?? null,
         image,
         price,
         priceNum,
