@@ -1,25 +1,28 @@
+import { useState } from "react";
+import ContactModal from "../events/Contact";
+
 export default function Footer() {
+    const [showContact, setShowContact] = useState(false);
     const year = new Date().getFullYear();
 
     const ministryLinks = [
-        { label: "Children's Ministries", href: "#" },
-        { label: "Youth Ministries", href: "#" },
-        { label: "Women's Ministries", href: "#" },
-        { label: "Men's Ministries", href: "#" },
-        { label: "WISPA", href: "#" },
-        { label: "Music Ministries", href: "#" },
+        { label: "Children's Ministries" },
+        { label: "Youth Ministries" },
+        { label: "Women's Ministries" },
+        { label: "Men's Ministries" },
+        { label: "WISPA" },
+        { label: "Music Ministries" },
     ];
 
     const exploreLinks = [
-        { label: "All Events", href: "#" },
-        { label: "Campus Ministries", href: "#" },
-        { label: "Upcoming Programmes", href: "#" },
+        { label: "All Events" },
+        { label: "Campus Ministries" },
+        { label: "Upcoming Programmes" },
     ];
 
     const connectLinks = [
-        { label: "Contact Us", href: "#" },
-        { label: "Newsletter", href: "#" },
-        { label: "Prayer Request", href: "#" },
+        { label: "Contact Us", onClick: () => setShowContact(true) },
+        { label: "Prayer Request", onClick: () => setShowContact(true) },
     ];
 
     const colHeadingStyle = {
@@ -38,6 +41,14 @@ export default function Footer() {
         textDecoration: "none",
         marginBottom: "10px",
         transition: "color 0.2s",
+        fontFamily: "'DM Sans', 'Inter', sans-serif",
+    };
+
+    const nonClickableLinkStyle = {
+        display: "block",
+        fontSize: "14px",
+        color: "rgba(255,255,255,0.6)",
+        marginBottom: "10px",
         fontFamily: "'DM Sans', 'Inter', sans-serif",
     };
 
@@ -87,15 +98,9 @@ export default function Footer() {
                 <div>
                     <p style={colHeadingStyle}>Ministries</p>
                     {ministryLinks.map(item => (
-                        <a
-                            key={item.label}
-                            href={item.href}
-                            style={linkStyle}
-                            onMouseEnter={e => e.currentTarget.style.color = "#fff"}
-                            onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,0.6)"}
-                        >
+                        <span key={item.label} style={nonClickableLinkStyle}>
                             {item.label}
-                        </a>
+                        </span>
                     ))}
                 </div>
 
@@ -103,15 +108,9 @@ export default function Footer() {
                 <div>
                     <p style={colHeadingStyle}>Explore</p>
                     {exploreLinks.map(item => (
-                        <a
-                            key={item.label}
-                            href={item.href}
-                            style={linkStyle}
-                            onMouseEnter={e => e.currentTarget.style.color = "#fff"}
-                            onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,0.6)"}
-                        >
+                        <span key={item.label} style={nonClickableLinkStyle}>
                             {item.label}
-                        </a>
+                        </span>
                     ))}
                 </div>
 
@@ -119,15 +118,15 @@ export default function Footer() {
                 <div>
                     <p style={colHeadingStyle}>Connect</p>
                     {connectLinks.map(item => (
-                        <a
+                        <button
                             key={item.label}
-                            href={item.href}
-                            style={linkStyle}
+                            onClick={item.onClick}
+                            style={{ ...linkStyle, background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left" }}
                             onMouseEnter={e => e.currentTarget.style.color = "#fff"}
                             onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,0.6)"}
                         >
                             {item.label}
-                        </a>
+                        </button>
                     ))}
                 </div>
             </div>
@@ -166,6 +165,7 @@ export default function Footer() {
                     Designed by elevateLT
                 </a>
             </div>
+            {showContact && <ContactModal onClose={() => setShowContact(false)} />}
         </footer>
     );
 }

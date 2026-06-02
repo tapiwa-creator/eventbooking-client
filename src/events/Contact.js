@@ -155,7 +155,7 @@ export default function ContactModal({ onClose }) {
                         borderRadius: "12px", padding: "13px 15px", marginBottom: "20px",
                     }}>
                         <p style={{ color: "#374151", fontSize: "13px", lineHeight: 1.65, margin: 0 }}>
-                            Have a question, feedback, or need help with your booking? Fill in the form below and our team will get back to you shortly.
+                            Have a question, feedback, or need help with your registration? Fill in the form below and our team will get back to you shortly.
                         </p>
                     </div>
 
